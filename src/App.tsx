@@ -565,55 +565,65 @@ function MiniTable({ headers, rows }: { headers: string[]; rows: (string | numbe
 }
 
 function parseExerciseTypes(rows: SheetRow[]): ExerciseType[] {
+  const offset = columnOffset(rows, 'Nombre')
   return rows.slice(1)
     .map((row) => ({
       id: crypto.randomUUID(),
-      name: stringValue(row[1]),
-      pointsPerMinute: numberValue(row[2]),
+      name: stringValue(row[offset]),
+      pointsPerMinute: numberValue(row[offset + 1]),
     }))
     .filter((row) => row.name && row.pointsPerMinute > 0)
 }
 
 function parseExercises(rows: SheetRow[]): ExerciseEntry[] {
+  const offset = columnOffset(rows, 'Fecha')
   return sortByDateDesc(rows.slice(1)
     .map((row) => ({
       id: crypto.randomUUID(),
-      date: dateValue(row[1]),
-      exercise: stringValue(row[2]),
-      description: stringValue(row[3]),
-      minutes: numberValue(row[4]),
-      points: numberValue(row[5]),
+      date: dateValue(row[offset]),
+      exercise: stringValue(row[offset + 1]),
+      description: stringValue(row[offset + 2]),
+      minutes: numberValue(row[offset + 3]),
+      points: numberValue(row[offset + 4]),
     }))
     .filter((row) => row.date && row.exercise))
 }
 
 function parseCholesterol(rows: SheetRow[]): CholesterolEntry[] {
+  const offset = columnOffset(rows, 'Colesterol')
   return sortByDateDesc(rows.slice(1)
     .map((row) => ({
       id: crypto.randomUUID(),
-      total: numberValue(row[1]),
-      triglycerides: numberValue(row[2]),
-      hdl: numberValue(row[3]),
-      ldl: numberValue(row[4]),
-      date: dateValue(row[5]),
-      device: stringValue(row[6]),
+      total: numberValue(row[offset]),
+      triglycerides: numberValue(row[offset + 1]),
+      hdl: numberValue(row[offset + 2]),
+      ldl: numberValue(row[offset + 3]),
+      date: dateValue(row[offset + 4]),
+      device: stringValue(row[offset + 5]),
     }))
     .filter((row) => row.date))
 }
 
 function parseWeights(rows: SheetRow[]): WeightEntry[] {
+  const offset = columnOffset(rows, 'Fecha')
   return sortByDateDesc(rows.slice(1)
     .map((row) => ({
       id: crypto.randomUUID(),
-      date: dateValue(row[1]),
-      weightKg: numberValue(row[2]),
-      muscleKg: numberValue(row[3]),
-      musclePct: numberValue(row[4]),
-      fatKg: numberValue(row[5]),
-      fatPct: numberValue(row[6]),
-      scale: stringValue(row[7]),
+      date: dateValue(row[offset]),
+      weightKg: numberValue(row[offset + 1]),
+      muscleKg: numberValue(row[offset + 2]),
+      musclePct: numberValue(row[offset + 3]),
+      fatKg: numberValue(row[offset + 4]),
+      fatPct: numberValue(row[offset + 5]),
+      scale: stringValue(row[offset + 6]),
     }))
     .filter((row) => row.date && row.weightKg > 0))
+}
+
+function columnOffset(rows: SheetRow[], firstColumnName: string) {
+  const headers = rows[0] ?? []
+  const directIndex = headers.findIndex((header) => stringValue(header) === firstColumnName)
+  return directIndex >= 0 ? directIndex : 0
 }
 
 function buildCalendar(selectedMonth: string, entries: ExerciseEntry[]) {
