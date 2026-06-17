@@ -5,13 +5,18 @@ import type { SheetData } from 'read-excel-file/browser'
 import {
   Activity,
   CalendarDays,
+  Cloud,
+  Download,
   Dumbbell,
   FileSpreadsheet,
   HeartPulse,
+  KeyRound,
   Plus,
+  Save,
   Scale,
   Trophy,
   Upload,
+  UploadCloud,
 } from 'lucide-react'
 import './App.css'
 
@@ -58,9 +63,28 @@ type HealthData = {
   weights: WeightEntry[]
 }
 
+type SyncConfig = {
+  owner: string
+  repo: string
+  token: string
+}
+
+type SyncPayload = {
+  version: 1
+  updatedAt: string
+  data: HealthData
+}
+
+type GitHubContentResponse = {
+  content?: string
+  sha?: string
+}
+
 type SheetRow = SheetData[number]
 
 const STORAGE_KEY = 'vitalscore.data.v1'
+const SYNC_CONFIG_KEY = 'vitalscore.sync.github.v1'
+const SYNC_FILE_PATH = 'vitalscore-data.json'
 
 const defaultData: HealthData = {
   exerciseTypes: [
@@ -77,6 +101,9 @@ const formatDate = new Intl.DateTimeFormat('es-ES', { day: '2-digit', month: 'sh
 
 function App() {
   const [data, setData] = useState<HealthData>(() => loadData())
+  const [syncConfig, setSyncConfig] = useState<SyncConfig>(() => loadSyncConfig())
+  const [syncStatus, setSyncStatus] = useState('')
+  const [isSyncing, setIsSyncing] = useState(false)
   const [selectedMonth, setSelectedMonth] = useState(() => monthKey(new Date()))
   const [importStatus, setImportStatus] = useState('')
   const [exerciseForm, setExerciseForm] = useState({
@@ -120,6 +147,60 @@ function App() {
   function updateData(nextData: HealthData) {
     setData(nextData)
     localStorage.setItem(STORAGE_KEY, JSON.stringify(nextData))
+  }
+
+  function saveSyncConfig(event: FormEvent) {
+    event.preventDefault()
+    const nextConfig = {
+      owner: syncConfig.owner.trim(),
+      repo: syncConfig.repo.trim(),
+      token: syncConfig.token.trim(),
+    }
+    if (!nextConfig.owner || !nextConfig.repo || !nextConfig.token) {
+      setSyncStatus('Completa propietario, repositorio privado y token antes de guardar la sincronizacion.')
+      return
+    }
+
+    setSyncConfig(nextConfig)
+    localStorage.setItem(SYNC_CONFIG_KEY, JSON.stringify(nextConfig))
+    setSyncStatus('Configuracion de sincronizacion guardada en este dispositivo.')
+  }
+
+  async function pullFromCloud() {
+    await runSync(async () => {
+      const remote = await readRemoteData(syncConfig)
+      if (!remote) {
+        setSyncStatus('Todavia no hay datos en la nube. Pulsa "Subir a GitHub" desde el dispositivo que tiene tus datos.')
+        return
+      }
+
+      updateData(remote.data)
+      setExerciseForm((form) => ({ ...form, exercise: remote.data.exerciseTypes[0]?.name ?? form.exercise }))
+      setSyncStatus(`Datos descargados. Ultima actualizacion remota: ${friendlyDateTime(remote.updatedAt)}.`)
+    })
+  }
+
+  async function pushToCloud() {
+    await runSync(async () => {
+      await writeRemoteData(syncConfig, data)
+      setSyncStatus('Datos subidos al repositorio privado de GitHub.')
+    })
+  }
+
+  async function runSync(action: () => Promise<void>) {
+    if (!syncConfig.owner || !syncConfig.repo || !syncConfig.token) {
+      setSyncStatus('Guarda primero la configuracion de sincronizacion.')
+      return
+    }
+
+    setIsSyncing(true)
+    try {
+      await action()
+    } catch (error) {
+      setSyncStatus(error instanceof Error ? error.message : 'No se pudo sincronizar con GitHub.')
+    } finally {
+      setIsSyncing(false)
+    }
   }
 
   async function handleImport(event: ChangeEvent<HTMLInputElement>) {
@@ -236,12 +317,48 @@ function App() {
       </header>
 
       {importStatus && <p className="status-message">{importStatus}</p>}
+      {syncStatus && <p className="status-message">{syncStatus}</p>}
 
       <section className="metric-grid" aria-label="Resumen">
         <Metric icon={<Trophy />} label="Puntos este mes" value={monthlyPoints.toLocaleString('es-ES')} />
         <Metric icon={<Dumbbell />} label="Sesiones registradas" value={data.exercises.length.toString()} />
         <Metric icon={<Scale />} label="Peso actual" value={lastWeight ? `${lastWeight.weightKg.toLocaleString('es-ES')} kg` : 'Sin datos'} />
         <Metric icon={<HeartPulse />} label="Colesterol LDL" value={lastCholesterol ? `${lastCholesterol.ldl} mg/dl` : 'Sin datos'} />
+      </section>
+
+      <section className="sync-panel panel">
+        <div className="panel-heading">
+          <div>
+            <p className="eyebrow">Sincronizacion</p>
+            <h2>GitHub privado entre movil y PC</h2>
+          </div>
+          <Cloud />
+        </div>
+        <p className="helper-text">
+          Usa un repositorio privado solo para datos. El token se guarda en este dispositivo y nunca se sube al codigo.
+        </p>
+        <form className="sync-grid" onSubmit={saveSyncConfig}>
+          <label>
+            Propietario
+            <input value={syncConfig.owner} onChange={(event) => setSyncConfig({ ...syncConfig, owner: event.target.value })} placeholder="Jolurosan" autoComplete="username" />
+          </label>
+          <label>
+            Repositorio privado
+            <input value={syncConfig.repo} onChange={(event) => setSyncConfig({ ...syncConfig, repo: event.target.value })} placeholder="vitalscore-data" />
+          </label>
+          <label>
+            Token GitHub
+            <input type="password" value={syncConfig.token} onChange={(event) => setSyncConfig({ ...syncConfig, token: event.target.value })} placeholder="Fine-grained token con Contents read/write" autoComplete="off" />
+          </label>
+          <button type="submit"><KeyRound size={18} /> Guardar</button>
+        </form>
+        <div className="sync-actions">
+          <button type="button" onClick={pullFromCloud} disabled={isSyncing}><Download size={18} /> Descargar de GitHub</button>
+          <button type="button" onClick={pushToCloud} disabled={isSyncing}><UploadCloud size={18} /> Subir a GitHub</button>
+          <a className="secondary-link" href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noreferrer">
+            <Save size={18} /> Crear token
+          </a>
+        </div>
       </section>
 
       <section className="content-grid">
@@ -531,6 +648,94 @@ function loadData(): HealthData {
   }
 }
 
+function loadSyncConfig(): SyncConfig {
+  const stored = localStorage.getItem(SYNC_CONFIG_KEY)
+  if (!stored) return { owner: 'Jolurosan', repo: 'vitalscore-data', token: '' }
+
+  try {
+    const parsed = JSON.parse(stored) as Partial<SyncConfig>
+    return {
+      owner: parsed.owner ?? 'Jolurosan',
+      repo: parsed.repo ?? 'vitalscore-data',
+      token: parsed.token ?? '',
+    }
+  } catch {
+    return { owner: 'Jolurosan', repo: 'vitalscore-data', token: '' }
+  }
+}
+
+async function readRemoteData(config: SyncConfig): Promise<SyncPayload | null> {
+  const response = await githubRequest(config, 'GET')
+  if (response.status === 404) return null
+  if (!response.ok) throw new Error(await githubError(response, 'No se pudieron leer los datos de GitHub.'))
+
+  const body = await response.json() as GitHubContentResponse
+  if (!body.content) return null
+
+  return JSON.parse(base64ToText(body.content)) as SyncPayload
+}
+
+async function writeRemoteData(config: SyncConfig, data: HealthData) {
+  const existing = await githubRequest(config, 'GET')
+  let sha: string | undefined
+  if (existing.ok) {
+    const body = await existing.json() as GitHubContentResponse
+    sha = body.sha
+  } else if (existing.status !== 404) {
+    throw new Error(await githubError(existing, 'No se pudo comprobar el archivo remoto.'))
+  }
+
+  const payload: SyncPayload = {
+    version: 1,
+    updatedAt: new Date().toISOString(),
+    data,
+  }
+  const response = await githubRequest(config, 'PUT', {
+    message: 'Update VitalScore data',
+    content: textToBase64(JSON.stringify(payload, null, 2)),
+    sha,
+  })
+
+  if (!response.ok) throw new Error(await githubError(response, 'No se pudieron subir los datos a GitHub.'))
+}
+
+function githubRequest(config: SyncConfig, method: 'GET' | 'PUT', body?: object) {
+  return fetch(`https://api.github.com/repos/${config.owner}/${config.repo}/contents/${SYNC_FILE_PATH}`, {
+    method,
+    headers: {
+      Accept: 'application/vnd.github+json',
+      Authorization: `Bearer ${config.token}`,
+      'X-GitHub-Api-Version': '2022-11-28',
+      ...(body ? { 'Content-Type': 'application/json' } : {}),
+    },
+    body: body ? JSON.stringify(body) : undefined,
+  })
+}
+
+async function githubError(response: Response, fallback: string) {
+  try {
+    const body = await response.json() as { message?: string }
+    return `${fallback} GitHub respondio ${response.status}: ${body.message ?? response.statusText}`
+  } catch {
+    return `${fallback} GitHub respondio ${response.status}: ${response.statusText}`
+  }
+}
+
+function textToBase64(text: string) {
+  const bytes = new TextEncoder().encode(text)
+  let binary = ''
+  bytes.forEach((byte) => {
+    binary += String.fromCharCode(byte)
+  })
+  return btoa(binary)
+}
+
+function base64ToText(base64: string) {
+  const binary = atob(base64.replace(/\s/g, ''))
+  const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0))
+  return new TextDecoder().decode(bytes)
+}
+
 function latestByDate<T extends { date: string }>(items: T[]) {
   return [...items].sort((a, b) => b.date.localeCompare(a.date))[0]
 }
@@ -562,6 +767,13 @@ function dateValue(value: unknown) {
 
 function friendlyDate(date: string) {
   return date ? formatDate.format(new Date(`${date}T00:00:00`)) : '-'
+}
+
+function friendlyDateTime(date: string) {
+  return new Intl.DateTimeFormat('es-ES', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(new Date(date))
 }
 
 function today() {
