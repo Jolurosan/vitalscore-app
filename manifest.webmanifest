@@ -1,0 +1,1 @@
+{"name":"VitalScore","short_name":"VitalScore","description":"Seguimiento personal de ejercicio, peso y colesterol.","start_url":"/vitalscore-app/","display":"standalone","background_color":"#f7f4ef","theme_color":"#b11f4b","lang":"en","scope":"/vitalscore-app/","icons":[{"src":"logo.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}]}
