@@ -7,6 +7,7 @@ PWA para navegador y movil que permite registrar ejercicio diario, tipos de ejer
 1. Abre la app.
 2. Pulsa **Importar Excel** y selecciona un archivo con las hojas `Tipos de ejercicio`, `Ejercicio`, `Peso` y `Colesterol`.
 3. Anade nuevas sesiones, tipos de ejercicio, pesos o analiticas desde los formularios.
+4. Usa las paginas de detalle para revisar y eliminar actividades, analiticas o registros de peso.
 
 ## Sincronizacion entre dispositivos
 

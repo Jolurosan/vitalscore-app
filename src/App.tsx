@@ -4,6 +4,7 @@ import readXlsxFile from 'read-excel-file/browser'
 import type { SheetData } from 'read-excel-file/browser'
 import {
   Activity,
+  ArrowLeft,
   CalendarDays,
   Cloud,
   Download,
@@ -11,9 +12,11 @@ import {
   FileSpreadsheet,
   HeartPulse,
   KeyRound,
+  List,
   Plus,
   Save,
   Scale,
+  Trash2,
   Trophy,
   Upload,
   UploadCloud,
@@ -63,6 +66,8 @@ type HealthData = {
   weights: WeightEntry[]
 }
 
+type Page = 'dashboard' | 'activities' | 'analytics' | 'weights'
+
 type SyncConfig = {
   owner: string
   repo: string
@@ -104,6 +109,7 @@ function App() {
   const [syncConfig, setSyncConfig] = useState<SyncConfig>(() => loadSyncConfig())
   const [syncStatus, setSyncStatus] = useState('')
   const [isSyncing, setIsSyncing] = useState(false)
+  const [currentPage, setCurrentPage] = useState<Page>('dashboard')
   const [selectedMonth, setSelectedMonth] = useState(() => monthKey(new Date()))
   const [importStatus, setImportStatus] = useState('')
   const [exerciseForm, setExerciseForm] = useState({
@@ -143,6 +149,8 @@ function App() {
   const lastWeight = latestByDate(data.weights)
   const lastCholesterol = latestByDate(data.cholesterol)
   const calendarDays = useMemo(() => buildCalendar(selectedMonth, monthlyExercises), [selectedMonth, monthlyExercises])
+  const calculatedMusclePct = percentageOf(weightForm.muscleKg, weightForm.weightKg)
+  const calculatedFatPct = percentageOf(weightForm.fatKg, weightForm.weightKg)
 
   function updateData(nextData: HealthData) {
     setData(nextData)
@@ -266,6 +274,11 @@ function App() {
     setExerciseForm((form) => ({ ...form, description: '', minutes: 45 }))
   }
 
+  function deleteExercise(id: string) {
+    if (!window.confirm('¿Eliminar esta actividad?')) return
+    updateData({ ...data, exercises: data.exercises.filter((entry) => entry.id !== id) })
+  }
+
   function addCholesterol(event: FormEvent) {
     event.preventDefault()
     const nextEntry: CholesterolEntry = {
@@ -280,6 +293,11 @@ function App() {
     updateData({ ...data, cholesterol: sortByDateDesc([...data.cholesterol, nextEntry]) })
   }
 
+  function deleteCholesterol(id: string) {
+    if (!window.confirm('¿Eliminar esta analítica?')) return
+    updateData({ ...data, cholesterol: data.cholesterol.filter((entry) => entry.id !== id) })
+  }
+
   function addWeight(event: FormEvent) {
     event.preventDefault()
     const nextEntry: WeightEntry = {
@@ -287,12 +305,17 @@ function App() {
       date: weightForm.date,
       weightKg: Number(weightForm.weightKg) || 0,
       muscleKg: Number(weightForm.muscleKg) || 0,
-      musclePct: Number(weightForm.musclePct) || 0,
+      musclePct: calculatedMusclePct,
       fatKg: Number(weightForm.fatKg) || 0,
-      fatPct: Number(weightForm.fatPct) || 0,
+      fatPct: calculatedFatPct,
       scale: weightForm.scale.trim(),
     }
     updateData({ ...data, weights: sortByDateDesc([...data.weights, nextEntry]) })
+  }
+
+  function deleteWeight(id: string) {
+    if (!window.confirm('¿Eliminar este registro de peso?')) return
+    updateData({ ...data, weights: data.weights.filter((entry) => entry.id !== id) })
   }
 
   return (
@@ -326,6 +349,17 @@ function App() {
         <Metric icon={<HeartPulse />} label="Colesterol LDL" value={lastCholesterol ? `${lastCholesterol.ldl} mg/dl` : 'Sin datos'} />
       </section>
 
+      {currentPage !== 'dashboard' ? (
+        <DetailPage
+          page={currentPage}
+          data={data}
+          onBack={() => setCurrentPage('dashboard')}
+          onDeleteExercise={deleteExercise}
+          onDeleteCholesterol={deleteCholesterol}
+          onDeleteWeight={deleteWeight}
+        />
+      ) : (
+        <>
       <section className="sync-panel panel">
         <div className="panel-heading">
           <div>
@@ -397,6 +431,9 @@ function App() {
             </div>
             <CalendarDays />
           </div>
+          <button className="panel-shortcut" type="button" onClick={() => setCurrentPage('activities')}>
+            <List size={18} /> Ver todas las actividades
+          </button>
           <form className="form-stack" onSubmit={addExercise}>
             <label>
               Fecha
@@ -459,7 +496,7 @@ function App() {
         <article className="panel">
           <div className="panel-heading">
             <div>
-              <p className="eyebrow">Analiticas</p>
+              <button className="eyebrow nav-word" type="button" onClick={() => setCurrentPage('analytics')}>Analiticas</button>
               <h2>Colesterol</h2>
             </div>
             <HeartPulse />
@@ -485,7 +522,7 @@ function App() {
           <div className="panel-heading">
             <div>
               <p className="eyebrow">Composicion corporal</p>
-              <h2>Peso</h2>
+              <h2><button className="heading-link" type="button" onClick={() => setCurrentPage('weights')}>Peso</button></h2>
             </div>
             <Scale />
           </div>
@@ -494,8 +531,9 @@ function App() {
             <div className="two-columns">
               <label>Peso kg<input type="number" step="0.1" value={weightForm.weightKg} onChange={(event) => setWeightForm({ ...weightForm, weightKg: Number(event.target.value) })} /></label>
               <label>Musculo kg<input type="number" step="0.1" value={weightForm.muscleKg} onChange={(event) => setWeightForm({ ...weightForm, muscleKg: Number(event.target.value) })} /></label>
-              <label>Musculo %<input type="number" step="0.1" value={weightForm.musclePct} onChange={(event) => setWeightForm({ ...weightForm, musclePct: Number(event.target.value) })} /></label>
-              <label>Grasa %<input type="number" step="0.1" value={weightForm.fatPct} onChange={(event) => setWeightForm({ ...weightForm, fatPct: Number(event.target.value) })} /></label>
+              <label>Grasa kg<input type="number" step="0.1" value={weightForm.fatKg} onChange={(event) => setWeightForm({ ...weightForm, fatKg: Number(event.target.value) })} /></label>
+              <label>Musculo %<input value={calculatedMusclePct.toFixed(1)} readOnly /></label>
+              <label>Grasa %<input value={calculatedFatPct.toFixed(1)} readOnly /></label>
             </div>
             <label>Bascula<input value={weightForm.scale} onChange={(event) => setWeightForm({ ...weightForm, scale: event.target.value })} /></label>
             <button type="submit"><Plus size={18} /> Guardar peso</button>
@@ -529,6 +567,8 @@ function App() {
           <p className="total-line">Puntos totales: <strong>{totalPoints.toLocaleString('es-ES')}</strong></p>
         </article>
       </section>
+        </>
+      )}
     </main>
   )
 }
@@ -561,6 +601,128 @@ function MiniTable({ headers, rows }: { headers: string[]; rows: (string | numbe
         </tbody>
       </table>
     </div>
+  )
+}
+
+function DetailPage({
+  page,
+  data,
+  onBack,
+  onDeleteExercise,
+  onDeleteCholesterol,
+  onDeleteWeight,
+}: {
+  page: Page
+  data: HealthData
+  onBack: () => void
+  onDeleteExercise: (id: string) => void
+  onDeleteCholesterol: (id: string) => void
+  onDeleteWeight: (id: string) => void
+}) {
+  const title = ({
+    dashboard: 'Panel principal',
+    activities: 'Todas las actividades',
+    analytics: 'Todas las analiticas',
+    weights: 'Todos los pesos',
+  } satisfies Record<Page, string>)[page]
+
+  return (
+    <section className="detail-panel panel">
+      <div className="detail-heading">
+        <div>
+          <p className="eyebrow">Detalle</p>
+          <h2>{title}</h2>
+        </div>
+        <button className="secondary-button" type="button" onClick={onBack}>
+          <ArrowLeft size={18} /> Volver
+        </button>
+      </div>
+
+      {page === 'activities' && (
+        <DetailTable
+          emptyText="No hay actividades registradas."
+          headers={['Fecha', 'Ejercicio', 'Descripcion', 'Minutos', 'Puntos', '']}
+          rows={data.exercises.map((entry) => [
+            friendlyDate(entry.date),
+            entry.exercise,
+            entry.description || '-',
+            entry.minutes,
+            entry.points,
+            <DeleteButton label="Eliminar actividad" onClick={() => onDeleteExercise(entry.id)} />,
+          ])}
+        />
+      )}
+
+      {page === 'analytics' && (
+        <DetailTable
+          emptyText="No hay analiticas registradas."
+          headers={['Fecha', 'Total', 'Trigliceridos', 'HDL', 'LDL', 'Dispositivo', '']}
+          rows={data.cholesterol.map((entry) => [
+            friendlyDate(entry.date),
+            entry.total,
+            entry.triglycerides,
+            entry.hdl,
+            entry.ldl,
+            entry.device || '-',
+            <DeleteButton label="Eliminar analitica" onClick={() => onDeleteCholesterol(entry.id)} />,
+          ])}
+        />
+      )}
+
+      {page === 'weights' && (
+        <DetailTable
+          emptyText="No hay pesos registrados."
+          headers={['Fecha', 'Peso', 'Musculo kg', 'Musculo %', 'Grasa kg', 'Grasa %', 'Bascula', '']}
+          rows={data.weights.map((entry) => [
+            friendlyDate(entry.date),
+            `${entry.weightKg.toLocaleString('es-ES')} kg`,
+            `${entry.muscleKg.toLocaleString('es-ES')} kg`,
+            `${entry.musclePct.toFixed(1)}%`,
+            `${entry.fatKg.toLocaleString('es-ES')} kg`,
+            `${entry.fatPct.toFixed(1)}%`,
+            entry.scale || '-',
+            <DeleteButton label="Eliminar peso" onClick={() => onDeleteWeight(entry.id)} />,
+          ])}
+        />
+      )}
+    </section>
+  )
+}
+
+function DetailTable({
+  headers,
+  rows,
+  emptyText,
+}: {
+  headers: string[]
+  rows: (string | number | ReactNode)[][]
+  emptyText: string
+}) {
+  if (!rows.length) return <p className="empty-state">{emptyText}</p>
+
+  return (
+    <div className="table-wrap detail-table">
+      <table>
+        <thead>
+          <tr>{headers.map((header) => <th key={header}>{header}</th>)}</tr>
+        </thead>
+        <tbody>
+          {rows.map((row, index) => (
+            <tr key={index}>
+              {row.map((cell, cellIndex) => <td key={cellIndex}>{cell}</td>)}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+function DeleteButton({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <button className="delete-button" type="button" aria-label={label} onClick={onClick}>
+      <Trash2 size={16} />
+    </button>
   )
 }
 
@@ -760,6 +922,12 @@ function stringValue(value: unknown) {
 
 function numberValue(value: unknown) {
   return typeof value === 'number' && Number.isFinite(value) ? value : Number(stringValue(value).replace(',', '.')) || 0
+}
+
+function percentageOf(part: number, total: number) {
+  const totalValue = Number(total) || 0
+  if (totalValue <= 0) return 0
+  return ((Number(part) || 0) / totalValue) * 100
 }
 
 function dateValue(value: unknown) {
