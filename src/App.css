@@ -118,6 +118,23 @@ button:disabled {
   margin-top: 16px;
 }
 
+.ranking-panel {
+  margin-top: 16px;
+}
+
+.ranking-table {
+  margin-top: 0;
+}
+
+.ranking-table td:last-child,
+.ranking-table th:last-child {
+  text-align: right;
+}
+
+.ranking-table strong {
+  color: var(--cp-accent);
+}
+
 .helper-text {
   color: var(--cp-text-muted);
   margin-bottom: 16px;

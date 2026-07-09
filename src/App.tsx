@@ -149,6 +149,7 @@ function App() {
   const lastWeight = latestByDate(data.weights)
   const lastCholesterol = latestByDate(data.cholesterol)
   const calendarDays = useMemo(() => buildCalendar(selectedMonth, monthlyExercises), [selectedMonth, monthlyExercises])
+  const topActivityMonths = useMemo(() => buildTopActivityMonths(data.exercises), [data.exercises])
   const calculatedMusclePct = percentageOf(weightForm.muscleKg, weightForm.weightKg)
   const calculatedFatPct = percentageOf(weightForm.fatKg, weightForm.weightKg)
 
@@ -360,6 +361,38 @@ function App() {
         />
       ) : (
         <>
+      <section className="panel ranking-panel">
+        <div className="panel-heading">
+          <div>
+            <p className="eyebrow">Ranking</p>
+            <h2>Top 5 meses con más actividad</h2>
+          </div>
+          <Trophy />
+        </div>
+        {topActivityMonths.length ? (
+          <div className="table-wrap ranking-table">
+            <table>
+              <thead>
+                <tr>
+                  <th>Mes y año</th>
+                  <th>Total de puntos</th>
+                </tr>
+              </thead>
+              <tbody>
+                {topActivityMonths.map((month) => (
+                  <tr key={month.month}>
+                    <td>{month.label}</td>
+                    <td><strong>{month.points.toLocaleString('es-ES')}</strong></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p className="empty-state">No hay actividad suficiente para calcular el ranking.</p>
+        )}
+      </section>
+
       <section className="sync-panel panel">
         <div className="panel-heading">
           <div>
@@ -807,6 +840,24 @@ function buildCalendar(selectedMonth: string, entries: ExerciseEntry[]) {
       count: dayEntries.length,
     }
   })
+}
+
+function buildTopActivityMonths(entries: ExerciseEntry[]) {
+  const pointsByMonth = entries.reduce<Record<string, number>>((totals, entry) => {
+    if (!entry.date) return totals
+    const month = entry.date.slice(0, 7)
+    totals[month] = (totals[month] ?? 0) + entry.points
+    return totals
+  }, {})
+
+  return Object.entries(pointsByMonth)
+    .map(([month, points]) => ({
+      month,
+      points,
+      label: formatMonth.format(parseMonth(month)),
+    }))
+    .sort((a, b) => b.points - a.points || b.month.localeCompare(a.month))
+    .slice(0, 5)
 }
 
 function loadData(): HealthData {
