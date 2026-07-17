@@ -59,6 +59,18 @@ type WeightEntry = {
   scale: string
 }
 
+type ChartPoint = {
+  date: string
+  label: string
+  values: Record<string, number>
+}
+
+type ChartSeries = {
+  key: string
+  label: string
+  className: string
+}
+
 type HealthData = {
   exerciseTypes: ExerciseType[]
   exercises: ExerciseEntry[]
@@ -150,6 +162,8 @@ function App() {
   const lastCholesterol = latestByDate(data.cholesterol)
   const calendarDays = useMemo(() => buildCalendar(selectedMonth, monthlyExercises), [selectedMonth, monthlyExercises])
   const topActivityMonths = useMemo(() => buildTopActivityMonths(data.exercises), [data.exercises])
+  const cholesterolChartPoints = useMemo(() => buildCholesterolChartPoints(data.cholesterol), [data.cholesterol])
+  const weightChartPoints = useMemo(() => buildWeightChartPoints(data.weights), [data.weights])
   const calculatedMusclePct = percentageOf(weightForm.muscleKg, weightForm.weightKg)
   const calculatedFatPct = percentageOf(weightForm.fatKg, weightForm.weightKg)
 
@@ -551,7 +565,7 @@ function App() {
             <FileSpreadsheet />
           </div>
           <div className="history-list">
-            {data.exercises.slice(0, 10).map((entry) => (
+            {data.exercises.slice(0, 8).map((entry) => (
               <div className="history-item" key={entry.id}>
                 <div>
                   <strong>{entry.exercise}</strong>
@@ -564,6 +578,31 @@ function App() {
           </div>
           <p className="total-line">Puntos totales: <strong>{totalPoints.toLocaleString('es-ES')}</strong></p>
         </article>
+      </section>
+
+      <section className="chart-grid">
+        <LineChartPanel
+          eyebrow="Analiticas"
+          title="Evolucion del colesterol"
+          points={cholesterolChartPoints}
+          series={[
+            { key: 'total', label: 'Total', className: 'chart-blue' },
+            { key: 'ldl', label: 'Malo (LDL)', className: 'chart-red' },
+            { key: 'hdl', label: 'Bueno (HDL)', className: 'chart-green' },
+          ]}
+          emptyText="No hay analiticas suficientes para dibujar la grafica."
+        />
+        <LineChartPanel
+          eyebrow="Peso"
+          title="Evolucion corporal"
+          points={weightChartPoints}
+          series={[
+            { key: 'weightKg', label: 'Peso', className: 'chart-blue' },
+            { key: 'muscleKg', label: 'Musculo kg', className: 'chart-green' },
+            { key: 'fatKg', label: 'Grasa kg', className: 'chart-red' },
+          ]}
+          emptyText="No hay pesos suficientes para dibujar la grafica."
+        />
       </section>
 
       <section className="sync-panel panel">
@@ -634,6 +673,61 @@ function MiniTable({ headers, rows }: { headers: string[]; rows: (string | numbe
         </tbody>
       </table>
     </div>
+  )
+}
+
+function LineChartPanel({
+  eyebrow,
+  title,
+  points,
+  series,
+  emptyText,
+}: {
+  eyebrow: string
+  title: string
+  points: ChartPoint[]
+  series: ChartSeries[]
+  emptyText: string
+}) {
+  const chart = buildLineChart(points, series)
+
+  return (
+    <article className="panel chart-panel">
+      <div className="panel-heading">
+        <div>
+          <p className="eyebrow">{eyebrow}</p>
+          <h2>{title}</h2>
+        </div>
+        <Activity />
+      </div>
+      {points.length ? (
+        <>
+          <div className="chart-legend">
+            {series.map((item) => (
+              <span key={item.key}><i className={item.className}></i>{item.label}</span>
+            ))}
+          </div>
+          <svg className="line-chart" viewBox={`0 0 ${chart.width} ${chart.height}`} role="img" aria-label={title}>
+            <line className="chart-axis" x1={chart.padding} y1={chart.padding} x2={chart.padding} y2={chart.plotBottom} />
+            <line className="chart-axis" x1={chart.padding} y1={chart.plotBottom} x2={chart.plotRight} y2={chart.plotBottom} />
+            <text className="chart-label" x={chart.padding} y={chart.padding - 8}>{formatChartNumber(chart.max)}</text>
+            <text className="chart-label" x={chart.padding} y={chart.plotBottom + 18}>{formatChartNumber(chart.min)}</text>
+            {points[0] && <text className="chart-label" x={chart.padding} y={chart.height - 8}>{points[0].label}</text>}
+            {points.at(-1) && <text className="chart-label chart-label-end" x={chart.plotRight} y={chart.height - 8}>{points.at(-1)?.label}</text>}
+            {series.map((item) => (
+              <g key={item.key}>
+                <path className={`chart-line ${item.className}`} d={chart.pathFor(item.key)} />
+                {chart.pointsFor(item.key).map((point) => (
+                  <circle className={`chart-point ${item.className}`} key={`${item.key}-${point.x}-${point.y}`} cx={point.x} cy={point.y} r="3" />
+                ))}
+              </g>
+            ))}
+          </svg>
+        </>
+      ) : (
+        <p className="empty-state">{emptyText}</p>
+      )}
+    </article>
   )
 }
 
@@ -860,6 +954,56 @@ function buildTopActivityMonths(entries: ExerciseEntry[]) {
     .slice(0, 5)
 }
 
+function buildCholesterolChartPoints(entries: CholesterolEntry[]): ChartPoint[] {
+  return sortByDateAsc(entries).map((entry) => ({
+    date: entry.date,
+    label: friendlyDate(entry.date),
+    values: {
+      total: entry.total,
+      ldl: entry.ldl,
+      hdl: entry.hdl,
+    },
+  }))
+}
+
+function buildWeightChartPoints(entries: WeightEntry[]): ChartPoint[] {
+  return sortByDateAsc(entries).map((entry) => ({
+    date: entry.date,
+    label: friendlyDate(entry.date),
+    values: {
+      weightKg: entry.weightKg,
+      muscleKg: entry.muscleKg,
+      fatKg: entry.fatKg,
+    },
+  }))
+}
+
+function buildLineChart(points: ChartPoint[], series: ChartSeries[]) {
+  const width = 720
+  const height = 260
+  const padding = 42
+  const plotRight = width - 18
+  const plotBottom = height - 34
+  const allValues = points.flatMap((point) => series.map((item) => point.values[item.key])).filter((value) => Number.isFinite(value))
+  const rawMin = allValues.length ? Math.min(...allValues) : 0
+  const rawMax = allValues.length ? Math.max(...allValues) : 1
+  const spread = Math.max(rawMax - rawMin, 1)
+  const min = Math.max(0, rawMin - spread * 0.12)
+  const max = rawMax + spread * 0.12
+  const xFor = (index: number) => points.length <= 1
+    ? padding
+    : padding + (index / (points.length - 1)) * (plotRight - padding)
+  const yFor = (value: number) => plotBottom - ((value - min) / (max - min)) * (plotBottom - padding)
+  const pointsFor = (key: string) => points
+    .map((point, index) => ({ x: xFor(index), y: yFor(point.values[key]) }))
+    .filter((point) => Number.isFinite(point.x) && Number.isFinite(point.y))
+  const pathFor = (key: string) => pointsFor(key)
+    .map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`)
+    .join(' ')
+
+  return { width, height, padding, plotRight, plotBottom, min, max, pathFor, pointsFor }
+}
+
 function loadData(): HealthData {
   const stored = localStorage.getItem(STORAGE_KEY)
   if (!stored) return defaultData
@@ -967,6 +1111,10 @@ function sortByDateDesc<T extends { date: string }>(items: T[]) {
   return [...items].sort((a, b) => b.date.localeCompare(a.date))
 }
 
+function sortByDateAsc<T extends { date: string }>(items: T[]) {
+  return [...items].sort((a, b) => a.date.localeCompare(b.date))
+}
+
 function stringValue(value: unknown) {
   return typeof value === 'string' ? value.trim() : value == null ? '' : String(value).trim()
 }
@@ -1003,6 +1151,10 @@ function friendlyDateTime(date: string) {
     dateStyle: 'medium',
     timeStyle: 'short',
   }).format(new Date(date))
+}
+
+function formatChartNumber(value: number) {
+  return value.toLocaleString('es-ES', { maximumFractionDigits: 1 })
 }
 
 function today() {
