@@ -59,11 +59,18 @@ type WeightEntry = {
   scale: string
 }
 
+type HealthGoals = {
+  weightKg: number
+  musclePct: number
+  fatPct: number
+}
+
 type HealthData = {
   exerciseTypes: ExerciseType[]
   exercises: ExerciseEntry[]
   cholesterol: CholesterolEntry[]
   weights: WeightEntry[]
+  goals: HealthGoals
 }
 
 type Page = 'dashboard' | 'activities' | 'analytics' | 'weights'
@@ -99,6 +106,11 @@ const defaultData: HealthData = {
   exercises: [],
   cholesterol: [],
   weights: [],
+  goals: {
+    weightKg: 0,
+    musclePct: 0,
+    fatPct: 0,
+  },
 }
 
 const formatMonth = new Intl.DateTimeFormat('es-ES', { month: 'long', year: 'numeric' })
@@ -136,6 +148,7 @@ function App() {
     fatPct: 0,
     scale: '',
   })
+  const [goalForm, setGoalForm] = useState<HealthGoals>(() => data.goals)
 
   const selectedType = data.exerciseTypes.find((type) => type.name === exerciseForm.exercise)
   const projectedPoints = Math.round((Number(exerciseForm.minutes) || 0) * (selectedType?.pointsPerMinute ?? 0))
@@ -183,8 +196,10 @@ function App() {
         return
       }
 
-      updateData(remote.data)
-      setExerciseForm((form) => ({ ...form, exercise: remote.data.exerciseTypes[0]?.name ?? form.exercise }))
+      const remoteData = normalizeHealthData(remote.data)
+      updateData(remoteData)
+      setGoalForm(remoteData.goals)
+      setExerciseForm((form) => ({ ...form, exercise: remoteData.exerciseTypes[0]?.name ?? form.exercise }))
       setSyncStatus(`Datos descargados. Ultima actualizacion remota: ${friendlyDateTime(remote.updatedAt)}.`)
     })
   }
@@ -225,6 +240,7 @@ function App() {
         exercises: parseExercises(sheetsByName.get('Ejercicio') ?? []),
         cholesterol: parseCholesterol(sheetsByName.get('Colesterol') ?? []),
         weights: parseWeights(sheetsByName.get('Peso') ?? []),
+        goals: data.goals,
       }
 
       updateData({
@@ -232,6 +248,7 @@ function App() {
         exercises: importedData.exercises,
         cholesterol: importedData.cholesterol,
         weights: importedData.weights,
+        goals: data.goals,
       })
       setExerciseForm((form) => ({
         ...form,
@@ -312,6 +329,11 @@ function App() {
       scale: weightForm.scale.trim(),
     }
     updateData({ ...data, weights: sortByDateDesc([...data.weights, nextEntry]) })
+  }
+
+  function saveGoals(event: FormEvent) {
+    event.preventDefault()
+    updateData({ ...data, goals: goalForm })
   }
 
   function deleteWeight(id: string) {
@@ -524,6 +546,25 @@ function App() {
             </div>
             <Scale />
           </div>
+          <section className="goals-card" aria-label="Objetivos corporales">
+            <div className="goals-heading">
+              <div>
+                <p className="eyebrow">Objetivos</p>
+                <h3>Peso, musculo y grasa</h3>
+              </div>
+            </div>
+            <form className="goals-form" onSubmit={saveGoals}>
+              <label>Objetivo peso kg<input type="number" step="0.1" value={goalForm.weightKg} onChange={(event) => setGoalForm({ ...goalForm, weightKg: Number(event.target.value) })} /></label>
+              <label>Objetivo musculo %<input type="number" step="0.1" value={goalForm.musclePct} onChange={(event) => setGoalForm({ ...goalForm, musclePct: Number(event.target.value) })} /></label>
+              <label>Objetivo grasa %<input type="number" step="0.1" value={goalForm.fatPct} onChange={(event) => setGoalForm({ ...goalForm, fatPct: Number(event.target.value) })} /></label>
+              <button type="submit">Guardar objetivos</button>
+            </form>
+            <div className="goal-status-grid">
+              <GoalStatus label="Peso" current={lastWeight?.weightKg} target={data.goals.weightKg} suffix="kg" direction="target" />
+              <GoalStatus label="Musculo" current={lastWeight?.musclePct} target={data.goals.musclePct} suffix="%" direction="up" />
+              <GoalStatus label="Grasa" current={lastWeight?.fatPct} target={data.goals.fatPct} suffix="%" direction="down" />
+            </div>
+          </section>
           <form className="form-stack" onSubmit={addWeight}>
             <label>Fecha<input type="date" value={weightForm.date} onChange={(event) => setWeightForm({ ...weightForm, date: event.target.value })} required /></label>
             <div className="two-columns">
@@ -634,6 +675,38 @@ function MiniTable({ headers, rows }: { headers: string[]; rows: (string | numbe
         </tbody>
       </table>
     </div>
+  )
+}
+
+function GoalStatus({
+  label,
+  current,
+  target,
+  suffix,
+  direction,
+}: {
+  label: string
+  current?: number
+  target: number
+  suffix: string
+  direction: 'up' | 'down' | 'target'
+}) {
+  const hasGoal = target > 0
+  const hasCurrent = typeof current === 'number' && Number.isFinite(current)
+  const isReached = hasGoal && hasCurrent && (
+    direction === 'up'
+      ? current >= target
+      : direction === 'down'
+        ? current <= target
+        : Math.abs(current - target) <= 0.2
+  )
+
+  return (
+    <article className={`goal-status ${isReached ? 'goal-reached' : ''}`}>
+      <span>{label}</span>
+      <strong>{hasCurrent ? `${current.toFixed(1)}${suffix}` : '-'}</strong>
+      <small>{goalStatusText(current, target, suffix, direction)}</small>
+    </article>
   )
 }
 
@@ -865,9 +938,23 @@ function loadData(): HealthData {
   if (!stored) return defaultData
 
   try {
-    return JSON.parse(stored) as HealthData
+    return normalizeHealthData(JSON.parse(stored) as Partial<HealthData>)
   } catch {
     return defaultData
+  }
+}
+
+function normalizeHealthData(data: Partial<HealthData>): HealthData {
+  return {
+    exerciseTypes: data.exerciseTypes ?? defaultData.exerciseTypes,
+    exercises: data.exercises ?? [],
+    cholesterol: data.cholesterol ?? [],
+    weights: data.weights ?? [],
+    goals: {
+      weightKg: Number(data.goals?.weightKg) || 0,
+      musclePct: Number(data.goals?.musclePct) || 0,
+      fatPct: Number(data.goals?.fatPct) || 0,
+    },
   }
 }
 
@@ -911,7 +998,7 @@ async function writeRemoteData(config: SyncConfig, data: HealthData) {
   const payload: SyncPayload = {
     version: 1,
     updatedAt: new Date().toISOString(),
-    data,
+    data: normalizeHealthData(data),
   }
   const response = await githubRequest(config, 'PUT', {
     message: 'Update VitalScore data',
@@ -979,6 +1066,25 @@ function percentageOf(part: number, total: number) {
   const totalValue = Number(total) || 0
   if (totalValue <= 0) return 0
   return ((Number(part) || 0) / totalValue) * 100
+}
+
+function goalStatusText(current: number | undefined, target: number, suffix: string, direction: 'up' | 'down' | 'target') {
+  if (target <= 0) return 'Sin objetivo'
+  if (typeof current !== 'number' || !Number.isFinite(current)) return `Objetivo ${target.toFixed(1)}${suffix}`
+
+  const diff = current - target
+  if (direction === 'up') {
+    if (diff >= 0) return 'Objetivo alcanzado'
+    return `Faltan ${Math.abs(diff).toFixed(1)}${suffix}`
+  }
+
+  if (direction === 'down') {
+    if (diff <= 0) return 'Objetivo alcanzado'
+    return `Bajar ${diff.toFixed(1)}${suffix}`
+  }
+
+  if (Math.abs(diff) <= 0.2) return 'Objetivo alcanzado'
+  return diff > 0 ? `Bajar ${diff.toFixed(1)}${suffix}` : `Subir ${Math.abs(diff).toFixed(1)}${suffix}`
 }
 
 function dateValue(value: unknown) {

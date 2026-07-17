@@ -359,6 +359,67 @@ select:focus {
   gap: 12px;
 }
 
+.goals-card {
+  border: 1px solid var(--cp-border);
+  border-radius: 0.625rem;
+  background: var(--cp-surface-soft);
+  margin-bottom: 16px;
+  padding: 14px;
+}
+
+.goals-heading h3 {
+  font-size: 1rem;
+  margin: 0 0 12px;
+}
+
+.goals-form {
+  display: grid;
+  gap: 10px;
+}
+
+.goals-form button {
+  width: 100%;
+}
+
+.goal-status-grid {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.goal-status {
+  border: 1px solid var(--cp-border);
+  border-radius: 0.625rem;
+  background: var(--cp-bg-elevated);
+  display: grid;
+  gap: 2px;
+  padding: 10px;
+}
+
+.goal-status span {
+  color: var(--cp-text-muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.goal-status strong {
+  font-size: 1.1rem;
+}
+
+.goal-status small {
+  color: var(--cp-text-muted);
+}
+
+.goal-reached {
+  border-color: var(--cp-success);
+}
+
+.goal-reached strong,
+.goal-reached small {
+  color: var(--cp-success);
+}
+
 .chip-list {
   display: flex;
   gap: 8px;
