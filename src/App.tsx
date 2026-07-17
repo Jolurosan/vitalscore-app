@@ -361,74 +361,7 @@ function App() {
         />
       ) : (
         <>
-      <section className="panel ranking-panel">
-        <div className="panel-heading">
-          <div>
-            <p className="eyebrow">Ranking</p>
-            <h2>Top 5 meses con más actividad</h2>
-          </div>
-          <Trophy />
-        </div>
-        {topActivityMonths.length ? (
-          <div className="table-wrap ranking-table">
-            <table>
-              <thead>
-                <tr>
-                  <th>Mes y año</th>
-                  <th>Total de puntos</th>
-                </tr>
-              </thead>
-              <tbody>
-                {topActivityMonths.map((month) => (
-                  <tr key={month.month}>
-                    <td>{month.label}</td>
-                    <td><strong>{month.points.toLocaleString('es-ES')}</strong></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <p className="empty-state">No hay actividad suficiente para calcular el ranking.</p>
-        )}
-      </section>
-
-      <section className="sync-panel panel">
-        <div className="panel-heading">
-          <div>
-            <p className="eyebrow">Sincronizacion</p>
-            <h2>GitHub privado entre movil y PC</h2>
-          </div>
-          <Cloud />
-        </div>
-        <p className="helper-text">
-          Usa un repositorio privado solo para datos. El token se guarda en este dispositivo y nunca se sube al codigo.
-        </p>
-        <form className="sync-grid" onSubmit={saveSyncConfig}>
-          <label>
-            Propietario
-            <input value={syncConfig.owner} onChange={(event) => setSyncConfig({ ...syncConfig, owner: event.target.value })} placeholder="Jolurosan" autoComplete="username" />
-          </label>
-          <label>
-            Repositorio privado
-            <input value={syncConfig.repo} onChange={(event) => setSyncConfig({ ...syncConfig, repo: event.target.value })} placeholder="vitalscore-data" />
-          </label>
-          <label>
-            Token GitHub
-            <input type="password" value={syncConfig.token} onChange={(event) => setSyncConfig({ ...syncConfig, token: event.target.value })} placeholder="Fine-grained token con Contents read/write" autoComplete="off" />
-          </label>
-          <button type="submit"><KeyRound size={18} /> Guardar</button>
-        </form>
-        <div className="sync-actions">
-          <button type="button" onClick={pullFromCloud} disabled={isSyncing}><Download size={18} /> Descargar de GitHub</button>
-          <button type="button" onClick={pushToCloud} disabled={isSyncing}><UploadCloud size={18} /> Subir a GitHub</button>
-          <a className="secondary-link" href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noreferrer">
-            <Save size={18} /> Crear token
-          </a>
-        </div>
-      </section>
-
-      <section className="content-grid">
+      <section className="content-grid activity-grid">
         <article className="panel calendar-panel">
           <div className="panel-heading">
             <div>
@@ -523,6 +456,38 @@ function App() {
             ))}
           </div>
         </article>
+
+        <article className="panel ranking-panel">
+          <div className="panel-heading">
+            <div>
+              <p className="eyebrow">Ranking</p>
+              <h2>Top 5 meses con más actividad</h2>
+            </div>
+            <Trophy />
+          </div>
+          {topActivityMonths.length ? (
+            <div className="table-wrap ranking-table">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Mes y año</th>
+                    <th>Total de puntos</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {topActivityMonths.map((month) => (
+                    <tr key={month.month}>
+                      <td>{month.label}</td>
+                      <td><strong>{month.points.toLocaleString('es-ES')}</strong></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="empty-state">No hay actividad suficiente para calcular el ranking.</p>
+          )}
+        </article>
       </section>
 
       <section className="content-grid">
@@ -599,6 +564,41 @@ function App() {
           </div>
           <p className="total-line">Puntos totales: <strong>{totalPoints.toLocaleString('es-ES')}</strong></p>
         </article>
+      </section>
+
+      <section className="sync-panel panel">
+        <div className="panel-heading">
+          <div>
+            <p className="eyebrow">Sincronizacion</p>
+            <h2>GitHub privado entre movil y PC</h2>
+          </div>
+          <Cloud />
+        </div>
+        <p className="helper-text">
+          Usa un repositorio privado solo para datos. El token se guarda en este dispositivo y nunca se sube al codigo.
+        </p>
+        <form className="sync-grid" onSubmit={saveSyncConfig}>
+          <label>
+            Propietario
+            <input value={syncConfig.owner} onChange={(event) => setSyncConfig({ ...syncConfig, owner: event.target.value })} placeholder="Jolurosan" autoComplete="username" />
+          </label>
+          <label>
+            Repositorio privado
+            <input value={syncConfig.repo} onChange={(event) => setSyncConfig({ ...syncConfig, repo: event.target.value })} placeholder="vitalscore-data" />
+          </label>
+          <label>
+            Token GitHub
+            <input type="password" value={syncConfig.token} onChange={(event) => setSyncConfig({ ...syncConfig, token: event.target.value })} placeholder="Fine-grained token con Contents read/write" autoComplete="off" />
+          </label>
+          <button type="submit"><KeyRound size={18} /> Guardar</button>
+        </form>
+        <div className="sync-actions">
+          <button type="button" onClick={pullFromCloud} disabled={isSyncing}><Download size={18} /> Descargar de GitHub</button>
+          <button type="button" onClick={pushToCloud} disabled={isSyncing}><UploadCloud size={18} /> Subir a GitHub</button>
+          <a className="secondary-link" href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noreferrer">
+            <Save size={18} /> Crear token
+          </a>
+        </div>
       </section>
         </>
       )}

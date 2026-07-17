@@ -119,7 +119,7 @@ button:disabled {
 }
 
 .ranking-panel {
-  margin-top: 16px;
+  margin-top: 0;
 }
 
 .ranking-table {
@@ -220,6 +220,14 @@ button:disabled {
 .content-grid {
   grid-template-columns: 1.2fr 0.9fr 0.9fr;
   align-items: start;
+}
+
+.activity-grid .calendar-panel {
+  grid-row: span 2;
+}
+
+.activity-grid .ranking-panel {
+  grid-column: 2 / 4;
 }
 
 .metric-card {
@@ -448,6 +456,12 @@ th {
   .metric-grid,
   .sync-grid {
     grid-template-columns: 1fr;
+  }
+
+  .activity-grid .calendar-panel,
+  .activity-grid .ranking-panel {
+    grid-column: auto;
+    grid-row: auto;
   }
 
   .detail-heading {
