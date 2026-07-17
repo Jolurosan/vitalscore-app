@@ -63,6 +63,7 @@ type HealthGoals = {
   weightKg: number
   musclePct: number
   fatPct: number
+  targetDate: string
 }
 
 type HealthData = {
@@ -110,6 +111,7 @@ const defaultData: HealthData = {
     weightKg: 0,
     musclePct: 0,
     fatPct: 0,
+    targetDate: '',
   },
 }
 
@@ -240,7 +242,7 @@ function App() {
         exercises: parseExercises(sheetsByName.get('Ejercicio') ?? []),
         cholesterol: parseCholesterol(sheetsByName.get('Colesterol') ?? []),
         weights: parseWeights(sheetsByName.get('Peso') ?? []),
-        goals: data.goals,
+        goals: normalizeHealthData(data).goals,
       }
 
       updateData({
@@ -248,7 +250,7 @@ function App() {
         exercises: importedData.exercises,
         cholesterol: importedData.cholesterol,
         weights: importedData.weights,
-        goals: data.goals,
+        goals: normalizeHealthData(data).goals,
       })
       setExerciseForm((form) => ({
         ...form,
@@ -370,6 +372,23 @@ function App() {
         <Metric icon={<Dumbbell />} label="Sesiones registradas" value={data.exercises.length.toString()} />
         <Metric icon={<Scale />} label="Peso actual" value={lastWeight ? `${lastWeight.weightKg.toLocaleString('es-ES')} kg` : 'Sin datos'} />
         <Metric icon={<HeartPulse />} label="Colesterol LDL" value={lastCholesterol ? `${lastCholesterol.ldl} mg/dl` : 'Sin datos'} />
+      </section>
+
+      <section className="panel goals-summary-panel" aria-label="Resumen de objetivos corporales">
+        <div className="goals-summary-heading">
+          <div>
+            <p className="eyebrow">Objetivos corporales</p>
+            <h2>Actual vs objetivo</h2>
+          </div>
+          <p className="goal-target-date">
+            Fecha objetivo: <strong>{data.goals.targetDate ? friendlyDate(data.goals.targetDate) : 'Sin fecha'}</strong>
+          </p>
+        </div>
+        <div className="goal-status-grid goal-status-grid-horizontal">
+          <GoalStatus label="Peso" current={lastWeight?.weightKg} target={data.goals.weightKg} suffix="kg" direction="target" />
+          <GoalStatus label="Musculo" current={lastWeight?.musclePct} target={data.goals.musclePct} suffix="%" direction="up" />
+          <GoalStatus label="Grasa" current={lastWeight?.fatPct} target={data.goals.fatPct} suffix="%" direction="down" />
+        </div>
       </section>
 
       {currentPage !== 'dashboard' ? (
@@ -546,25 +565,6 @@ function App() {
             </div>
             <Scale />
           </div>
-          <section className="goals-card" aria-label="Objetivos corporales">
-            <div className="goals-heading">
-              <div>
-                <p className="eyebrow">Objetivos</p>
-                <h3>Peso, musculo y grasa</h3>
-              </div>
-            </div>
-            <form className="goals-form" onSubmit={saveGoals}>
-              <label>Objetivo peso kg<input type="number" step="0.1" value={goalForm.weightKg} onChange={(event) => setGoalForm({ ...goalForm, weightKg: Number(event.target.value) })} /></label>
-              <label>Objetivo musculo %<input type="number" step="0.1" value={goalForm.musclePct} onChange={(event) => setGoalForm({ ...goalForm, musclePct: Number(event.target.value) })} /></label>
-              <label>Objetivo grasa %<input type="number" step="0.1" value={goalForm.fatPct} onChange={(event) => setGoalForm({ ...goalForm, fatPct: Number(event.target.value) })} /></label>
-              <button type="submit">Guardar objetivos</button>
-            </form>
-            <div className="goal-status-grid">
-              <GoalStatus label="Peso" current={lastWeight?.weightKg} target={data.goals.weightKg} suffix="kg" direction="target" />
-              <GoalStatus label="Musculo" current={lastWeight?.musclePct} target={data.goals.musclePct} suffix="%" direction="up" />
-              <GoalStatus label="Grasa" current={lastWeight?.fatPct} target={data.goals.fatPct} suffix="%" direction="down" />
-            </div>
-          </section>
           <form className="form-stack" onSubmit={addWeight}>
             <label>Fecha<input type="date" value={weightForm.date} onChange={(event) => setWeightForm({ ...weightForm, date: event.target.value })} required /></label>
             <div className="two-columns">
@@ -605,6 +605,24 @@ function App() {
           </div>
           <p className="total-line">Puntos totales: <strong>{totalPoints.toLocaleString('es-ES')}</strong></p>
         </article>
+      </section>
+
+      <section className="panel goals-panel" aria-label="Configurar objetivos corporales">
+        <div className="panel-heading">
+          <div>
+            <p className="eyebrow">Objetivos</p>
+            <h2>Peso, musculo y grasa</h2>
+          </div>
+          <Scale />
+        </div>
+        <p className="helper-text">Define una meta y una fecha objetivo para comparar el ultimo registro con el punto al que quieres llegar.</p>
+        <form className="goals-form goals-form-wide" onSubmit={saveGoals}>
+          <label>Fecha objetivo<input type="date" value={goalForm.targetDate} onChange={(event) => setGoalForm({ ...goalForm, targetDate: event.target.value })} /></label>
+          <label>Objetivo peso kg<input type="number" step="0.1" value={goalForm.weightKg} onChange={(event) => setGoalForm({ ...goalForm, weightKg: Number(event.target.value) })} /></label>
+          <label>Objetivo musculo %<input type="number" step="0.1" value={goalForm.musclePct} onChange={(event) => setGoalForm({ ...goalForm, musclePct: Number(event.target.value) })} /></label>
+          <label>Objetivo grasa %<input type="number" step="0.1" value={goalForm.fatPct} onChange={(event) => setGoalForm({ ...goalForm, fatPct: Number(event.target.value) })} /></label>
+          <button type="submit">Guardar objetivos</button>
+        </form>
       </section>
 
       <section className="sync-panel panel">
@@ -954,6 +972,7 @@ function normalizeHealthData(data: Partial<HealthData>): HealthData {
       weightKg: Number(data.goals?.weightKg) || 0,
       musclePct: Number(data.goals?.musclePct) || 0,
       fatPct: Number(data.goals?.fatPct) || 0,
+      targetDate: typeof data.goals?.targetDate === 'string' ? data.goals.targetDate : '',
     },
   }
 }

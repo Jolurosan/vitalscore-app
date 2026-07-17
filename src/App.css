@@ -114,6 +114,28 @@ button:disabled {
   grid-template-columns: repeat(4, 1fr);
 }
 
+.goals-summary-panel {
+  margin-top: 16px;
+  padding: 16px 20px;
+}
+
+.goals-summary-heading {
+  align-items: center;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.goal-target-date {
+  color: var(--cp-text-muted);
+  font-size: 0.9rem;
+}
+
+.goal-target-date strong {
+  color: var(--cp-text);
+}
+
 .sync-panel {
   margin-top: 16px;
 }
@@ -359,6 +381,10 @@ select:focus {
   gap: 12px;
 }
 
+.goals-panel {
+  margin-top: 16px;
+}
+
 .goals-card {
   border: 1px solid var(--cp-border);
   border-radius: 0.625rem;
@@ -377,6 +403,11 @@ select:focus {
   gap: 10px;
 }
 
+.goals-form-wide {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  align-items: end;
+}
+
 .goals-form button {
   width: 100%;
 }
@@ -385,6 +416,11 @@ select:focus {
   display: grid;
   gap: 8px;
   margin-top: 12px;
+}
+
+.goal-status-grid-horizontal {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-top: 0;
 }
 
 .goal-status {
@@ -515,8 +551,15 @@ th {
   .hero-card,
   .content-grid,
   .metric-grid,
-  .sync-grid {
+  .sync-grid,
+  .goals-form-wide,
+  .goal-status-grid-horizontal {
     grid-template-columns: 1fr;
+  }
+
+  .goals-summary-heading {
+    align-items: flex-start;
+    flex-direction: column;
   }
 
   .activity-grid .calendar-panel,
