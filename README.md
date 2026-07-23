@@ -1,11 +1,11 @@
 # VitalScore
 
-PWA para navegador y movil que permite registrar ejercicio diario, tipos de ejercicio, peso y colesterol. La app esta preparada para GitHub Pages, pero los datos personales no se suben al repositorio publico: se importan desde Excel en el navegador y se guardan en el almacenamiento local del dispositivo.
+PWA para navegador y movil que permite registrar ejercicio diario, tipos de ejercicio, peso y colesterol. La app esta preparada para GitHub Pages, pero los datos personales no se suben al repositorio publico: se guardan localmente y se pueden sincronizar con un repositorio privado.
 
 ## Uso
 
 1. Abre la app.
-2. Pulsa **Importar Excel** y selecciona un archivo con las hojas `Tipos de ejercicio`, `Ejercicio`, `Peso` y `Colesterol`.
+2. Sincroniza con GitHub si quieres cargar datos existentes.
 3. Anade nuevas sesiones, tipos de ejercicio, pesos o analiticas desde los formularios.
 4. Usa las paginas de detalle para revisar y eliminar actividades, analiticas o registros de peso.
 5. En **Objetivos**, define peso, musculo, grasa y fecha objetivo para comparar automaticamente contra el ultimo registro.

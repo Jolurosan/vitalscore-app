@@ -63,7 +63,6 @@ h2 {
   color: var(--cp-text-muted);
 }
 
-.import-button,
 button {
   border: 1px solid var(--cp-accent);
   border-radius: 0.625rem;
@@ -79,12 +78,8 @@ button {
   padding: 10px 14px;
 }
 
-.import-button input {
-  display: none;
-}
-
 button:hover,
-.import-button:hover {
+button:hover {
   background: var(--cp-accent-hover);
   border-color: var(--cp-accent-hover);
 }
@@ -104,7 +99,7 @@ button:disabled {
 }
 
 .metric-grid,
-.content-grid {
+.two-panel-grid {
   display: grid;
   gap: 16px;
   margin-top: 16px;
@@ -239,17 +234,13 @@ button:disabled {
   text-decoration: underline;
 }
 
-.content-grid {
-  grid-template-columns: 1.2fr 0.9fr 0.9fr;
+.two-panel-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   align-items: start;
 }
 
-.activity-grid .calendar-panel {
-  grid-row: span 2;
-}
-
-.activity-grid .ranking-panel {
-  grid-column: 2 / 4;
+.session-grid {
+  grid-template-columns: 1.2fr 0.8fr;
 }
 
 .metric-card {
@@ -512,31 +503,9 @@ th {
   background: var(--cp-accent-soft);
 }
 
-.history-list {
-  display: grid;
-  gap: 10px;
-}
-
-.history-item {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  border: 1px solid var(--cp-border);
-  border-radius: 0.625rem;
-  background: var(--cp-surface-soft);
-  padding: 12px;
-}
-
-.history-item p,
 .empty-state,
 .total-line {
   color: var(--cp-text-muted);
-}
-
-.history-item span {
-  color: var(--cp-accent);
-  font-weight: 800;
-  white-space: nowrap;
 }
 
 .empty-state {
@@ -549,7 +518,7 @@ th {
 
 @media (max-width: 980px) {
   .hero-card,
-  .content-grid,
+  .two-panel-grid,
   .metric-grid,
   .sync-grid,
   .goals-form-wide,
@@ -560,12 +529,6 @@ th {
   .goals-summary-heading {
     align-items: flex-start;
     flex-direction: column;
-  }
-
-  .activity-grid .calendar-panel,
-  .activity-grid .ranking-panel {
-    grid-column: auto;
-    grid-row: auto;
   }
 
   .detail-heading {

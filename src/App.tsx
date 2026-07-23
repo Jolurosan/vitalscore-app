@@ -1,7 +1,5 @@
 import { useMemo, useState } from 'react'
-import type { ChangeEvent, FormEvent, ReactNode } from 'react'
-import readXlsxFile from 'read-excel-file/browser'
-import type { SheetData } from 'read-excel-file/browser'
+import type { FormEvent, ReactNode } from 'react'
 import {
   Activity,
   ArrowLeft,
@@ -9,7 +7,6 @@ import {
   Cloud,
   Download,
   Dumbbell,
-  FileSpreadsheet,
   HeartPulse,
   KeyRound,
   List,
@@ -18,7 +15,6 @@ import {
   Scale,
   Trash2,
   Trophy,
-  Upload,
   UploadCloud,
 } from 'lucide-react'
 import './App.css'
@@ -93,8 +89,6 @@ type GitHubContentResponse = {
   sha?: string
 }
 
-type SheetRow = SheetData[number]
-
 const STORAGE_KEY = 'vitalscore.data.v1'
 const SYNC_CONFIG_KEY = 'vitalscore.sync.github.v1'
 const SYNC_FILE_PATH = 'vitalscore-data.json'
@@ -125,7 +119,6 @@ function App() {
   const [isSyncing, setIsSyncing] = useState(false)
   const [currentPage, setCurrentPage] = useState<Page>('dashboard')
   const [selectedMonth, setSelectedMonth] = useState(() => monthKey(new Date()))
-  const [importStatus, setImportStatus] = useState('')
   const [exerciseForm, setExerciseForm] = useState({
     date: today(),
     exercise: data.exerciseTypes[0]?.name ?? '',
@@ -160,7 +153,6 @@ function App() {
     [data.exercises, selectedMonth],
   )
   const monthlyPoints = monthlyExercises.reduce((sum, entry) => sum + entry.points, 0)
-  const totalPoints = data.exercises.reduce((sum, entry) => sum + entry.points, 0)
   const lastWeight = latestByDate(data.weights)
   const lastCholesterol = latestByDate(data.cholesterol)
   const calendarDays = useMemo(() => buildCalendar(selectedMonth, monthlyExercises), [selectedMonth, monthlyExercises])
@@ -226,41 +218,6 @@ function App() {
       setSyncStatus(error instanceof Error ? error.message : 'No se pudo sincronizar con GitHub.')
     } finally {
       setIsSyncing(false)
-    }
-  }
-
-  async function handleImport(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0]
-    if (!file) return
-
-    try {
-      const sheets = await readXlsxFile(file)
-      const sheetsByName = new Map(sheets.map((sheet) => [sheet.sheet, sheet.data]))
-
-      const importedData: HealthData = {
-        exerciseTypes: parseExerciseTypes(sheetsByName.get('Tipos de ejercicio') ?? []),
-        exercises: parseExercises(sheetsByName.get('Ejercicio') ?? []),
-        cholesterol: parseCholesterol(sheetsByName.get('Colesterol') ?? []),
-        weights: parseWeights(sheetsByName.get('Peso') ?? []),
-        goals: normalizeHealthData(data).goals,
-      }
-
-      updateData({
-        exerciseTypes: importedData.exerciseTypes.length ? importedData.exerciseTypes : data.exerciseTypes,
-        exercises: importedData.exercises,
-        cholesterol: importedData.cholesterol,
-        weights: importedData.weights,
-        goals: normalizeHealthData(data).goals,
-      })
-      setExerciseForm((form) => ({
-        ...form,
-        exercise: importedData.exerciseTypes[0]?.name ?? form.exercise,
-      }))
-      setImportStatus(`Excel importado: ${importedData.exercises.length} ejercicios, ${importedData.weights.length} pesos y ${importedData.cholesterol.length} analíticas.`)
-    } catch (error) {
-      setImportStatus(error instanceof Error ? error.message : 'No se pudo importar el Excel.')
-    } finally {
-      event.target.value = ''
     }
   }
 
@@ -357,14 +314,8 @@ function App() {
             Los datos se guardan en este dispositivo.
           </p>
         </div>
-        <label className="import-button">
-          <Upload size={18} />
-          Importar Excel
-          <input type="file" accept=".xlsx,.xls" onChange={handleImport} />
-        </label>
       </header>
 
-      {importStatus && <p className="status-message">{importStatus}</p>}
       {syncStatus && <p className="status-message">{syncStatus}</p>}
 
       <section className="metric-grid" aria-label="Resumen">
@@ -402,7 +353,7 @@ function App() {
         />
       ) : (
         <>
-      <section className="content-grid activity-grid">
+      <section className="two-panel-grid session-grid">
         <article className="panel calendar-panel">
           <div className="panel-heading">
             <div>
@@ -471,67 +422,9 @@ function App() {
             <button type="submit"><Plus size={18} /> Guardar ejercicio</button>
           </form>
         </article>
-
-        <article className="panel">
-          <div className="panel-heading">
-            <div>
-              <p className="eyebrow">Catalogo</p>
-              <h2>Tipos de ejercicio</h2>
-            </div>
-            <Dumbbell />
-          </div>
-          <form className="form-stack" onSubmit={addExerciseType}>
-            <label>
-              Nombre
-              <input value={typeForm.name} onChange={(event) => setTypeForm({ ...typeForm, name: event.target.value })} placeholder="Yoga, natacion..." required />
-            </label>
-            <label>
-              Puntos por minuto
-              <input type="number" min="0" step="0.5" value={typeForm.pointsPerMinute} onChange={(event) => setTypeForm({ ...typeForm, pointsPerMinute: Number(event.target.value) })} required />
-            </label>
-            <button type="submit"><Plus size={18} /> Anadir tipo</button>
-          </form>
-          <div className="chip-list">
-            {data.exerciseTypes.map((type) => (
-              <span className="chip" key={type.id}>{type.name} · {type.pointsPerMinute} p/min</span>
-            ))}
-          </div>
-        </article>
-
-        <article className="panel ranking-panel">
-          <div className="panel-heading">
-            <div>
-              <p className="eyebrow">Ranking</p>
-              <h2>Top 5 meses con más actividad</h2>
-            </div>
-            <Trophy />
-          </div>
-          {topActivityMonths.length ? (
-            <div className="table-wrap ranking-table">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Mes y año</th>
-                    <th>Total de puntos</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {topActivityMonths.map((month) => (
-                    <tr key={month.month}>
-                      <td>{month.label}</td>
-                      <td><strong>{month.points.toLocaleString('es-ES')}</strong></td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <p className="empty-state">No hay actividad suficiente para calcular el ranking.</p>
-          )}
-        </article>
       </section>
 
-      <section className="content-grid">
+      <section className="two-panel-grid health-grid">
         <article className="panel">
           <div className="panel-heading">
             <div>
@@ -582,28 +475,65 @@ function App() {
             rows={data.weights.slice(0, 5).map((entry) => [friendlyDate(entry.date), `${entry.weightKg} kg`, `${entry.musclePct.toFixed(1)}%`, `${entry.fatPct.toFixed(1)}%`])}
           />
         </article>
+      </section>
 
-        <article className="panel history-panel">
+      <section className="two-panel-grid catalog-ranking-grid">
+        <article className="panel ranking-panel">
           <div className="panel-heading">
             <div>
-              <p className="eyebrow">Historial</p>
-              <h2>Ultimos ejercicios</h2>
+              <p className="eyebrow">Ranking</p>
+              <h2>Top 5 meses con más actividad</h2>
             </div>
-            <FileSpreadsheet />
+            <Trophy />
           </div>
-          <div className="history-list">
-            {data.exercises.slice(0, 8).map((entry) => (
-              <div className="history-item" key={entry.id}>
-                <div>
-                  <strong>{entry.exercise}</strong>
-                  <p>{friendlyDate(entry.date)} · {entry.description || 'Sin descripcion'}</p>
-                </div>
-                <span>{entry.points} p</span>
-              </div>
+          {topActivityMonths.length ? (
+            <div className="table-wrap ranking-table">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Mes y año</th>
+                    <th>Total de puntos</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {topActivityMonths.map((month) => (
+                    <tr key={month.month}>
+                      <td>{month.label}</td>
+                      <td><strong>{month.points.toLocaleString('es-ES')}</strong></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="empty-state">No hay actividad suficiente para calcular el ranking.</p>
+          )}
+        </article>
+
+        <article className="panel">
+          <div className="panel-heading">
+            <div>
+              <p className="eyebrow">Catalogo</p>
+              <h2>Tipos de ejercicio</h2>
+            </div>
+            <Dumbbell />
+          </div>
+          <form className="form-stack" onSubmit={addExerciseType}>
+            <label>
+              Nombre
+              <input value={typeForm.name} onChange={(event) => setTypeForm({ ...typeForm, name: event.target.value })} placeholder="Yoga, natacion..." required />
+            </label>
+            <label>
+              Puntos por minuto
+              <input type="number" min="0" step="0.5" value={typeForm.pointsPerMinute} onChange={(event) => setTypeForm({ ...typeForm, pointsPerMinute: Number(event.target.value) })} required />
+            </label>
+            <button type="submit"><Plus size={18} /> Anadir tipo</button>
+          </form>
+          <div className="chip-list">
+            {data.exerciseTypes.map((type) => (
+              <span className="chip" key={type.id}>{type.name} · {type.pointsPerMinute} p/min</span>
             ))}
-            {!data.exercises.length && <p className="empty-state">Importa tu Excel o anade tu primer ejercicio.</p>}
           </div>
-          <p className="total-line">Puntos totales: <strong>{totalPoints.toLocaleString('es-ES')}</strong></p>
         </article>
       </section>
 
@@ -850,68 +780,6 @@ function DeleteButton({ label, onClick }: { label: string; onClick: () => void }
   )
 }
 
-function parseExerciseTypes(rows: SheetRow[]): ExerciseType[] {
-  const offset = columnOffset(rows, 'Nombre')
-  return rows.slice(1)
-    .map((row) => ({
-      id: crypto.randomUUID(),
-      name: stringValue(row[offset]),
-      pointsPerMinute: numberValue(row[offset + 1]),
-    }))
-    .filter((row) => row.name && row.pointsPerMinute > 0)
-}
-
-function parseExercises(rows: SheetRow[]): ExerciseEntry[] {
-  const offset = columnOffset(rows, 'Fecha')
-  return sortByDateDesc(rows.slice(1)
-    .map((row) => ({
-      id: crypto.randomUUID(),
-      date: dateValue(row[offset]),
-      exercise: stringValue(row[offset + 1]),
-      description: stringValue(row[offset + 2]),
-      minutes: numberValue(row[offset + 3]),
-      points: numberValue(row[offset + 4]),
-    }))
-    .filter((row) => row.date && row.exercise))
-}
-
-function parseCholesterol(rows: SheetRow[]): CholesterolEntry[] {
-  const offset = columnOffset(rows, 'Colesterol')
-  return sortByDateDesc(rows.slice(1)
-    .map((row) => ({
-      id: crypto.randomUUID(),
-      total: numberValue(row[offset]),
-      triglycerides: numberValue(row[offset + 1]),
-      hdl: numberValue(row[offset + 2]),
-      ldl: numberValue(row[offset + 3]),
-      date: dateValue(row[offset + 4]),
-      device: stringValue(row[offset + 5]),
-    }))
-    .filter((row) => row.date))
-}
-
-function parseWeights(rows: SheetRow[]): WeightEntry[] {
-  const offset = columnOffset(rows, 'Fecha')
-  return sortByDateDesc(rows.slice(1)
-    .map((row) => ({
-      id: crypto.randomUUID(),
-      date: dateValue(row[offset]),
-      weightKg: numberValue(row[offset + 1]),
-      muscleKg: numberValue(row[offset + 2]),
-      musclePct: numberValue(row[offset + 3]),
-      fatKg: numberValue(row[offset + 4]),
-      fatPct: numberValue(row[offset + 5]),
-      scale: stringValue(row[offset + 6]),
-    }))
-    .filter((row) => row.date && row.weightKg > 0))
-}
-
-function columnOffset(rows: SheetRow[], firstColumnName: string) {
-  const headers = rows[0] ?? []
-  const directIndex = headers.findIndex((header) => stringValue(header) === firstColumnName)
-  return directIndex >= 0 ? directIndex : 0
-}
-
 function buildCalendar(selectedMonth: string, entries: ExerciseEntry[]) {
   const firstDay = parseMonth(selectedMonth)
   const startOffset = (firstDay.getDay() + 6) % 7
@@ -1073,14 +941,6 @@ function sortByDateDesc<T extends { date: string }>(items: T[]) {
   return [...items].sort((a, b) => b.date.localeCompare(a.date))
 }
 
-function stringValue(value: unknown) {
-  return typeof value === 'string' ? value.trim() : value == null ? '' : String(value).trim()
-}
-
-function numberValue(value: unknown) {
-  return typeof value === 'number' && Number.isFinite(value) ? value : Number(stringValue(value).replace(',', '.')) || 0
-}
-
 function percentageOf(part: number, total: number) {
   const totalValue = Number(total) || 0
   if (totalValue <= 0) return 0
@@ -1104,19 +964,6 @@ function goalStatusText(current: number | undefined, target: number, suffix: str
 
   if (Math.abs(diff) <= 0.2) return 'Objetivo alcanzado'
   return diff > 0 ? `Bajar ${diff.toFixed(1)}${suffix}` : `Subir ${Math.abs(diff).toFixed(1)}${suffix}`
-}
-
-function dateValue(value: unknown) {
-  if (value instanceof Date && !Number.isNaN(value.getTime())) return toDateInput(value)
-  const text = stringValue(value)
-  if (!text) return ''
-  if (/^\d{4}-\d{2}-\d{2}/.test(text)) return text.slice(0, 10)
-  const match = text.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/)
-  if (match) {
-    const [, day, month, year] = match
-    return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`
-  }
-  return ''
 }
 
 function friendlyDate(date: string) {
